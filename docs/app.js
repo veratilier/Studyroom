@@ -21,3 +21,7 @@ function notes(){ $('#noteContent').innerHTML=lecture!=='L01'&&lecture!=='all'?`
 function tab(t){document.querySelectorAll('.view').forEach(v=>v.hidden=v.id!==t);document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));if(t==='words')list();if(t==='notes')notes()}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;document.querySelectorAll('[data-mode]').forEach(x=>x.classList.toggle('selected',x===b));start()});$('#lecture').onchange=()=>{lecture=$('#lecture').value;start();list();notes()};$('#weakOnly').onchange=start;$('#search').oninput=list;
 fetch('words.json').then(r=>{if(!r.ok)throw Error();return r.json()}).then(data=>{words=data;start();list();notes()}).catch(()=>{$('#exercise').innerHTML='<div class="card empty"><h3>词表暂时没加载出来</h3><p>请刷新页面再试，原始词表仍可从左侧下载。</p></div>'});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
