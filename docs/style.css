@@ -7,3 +7,5 @@
 .course-chat textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:90px;padding:12px;font:inherit;border:1px solid var(--line,#cbd5df);border-radius:12px;background:#fff;color:inherit}.chat-pair{padding:14px 0;border-bottom:1px solid var(--line,#cbd5df)}.chat-question{font-weight:600}.chat-question,.chat-answer{white-space:pre-wrap;overflow-wrap:anywhere}.chat-history{max-height:540px;overflow:auto}.chat-status{font-size:14px;color:#415970}
 
 #unlockLibrary{max-width:480px;margin:20px auto} #unlockLibrary label,#changePassword label{display:block;margin:14px 0} #unlockLibrary input,#unlockLibrary select,#changePassword input{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:12px;border:1px solid #ccd6df;border-radius:10px;background:transparent;color:inherit;font:inherit} [hidden]{display:none!important}
+
+#aiForm label{display:block;margin:14px 0}#aiForm input{display:block;width:100%;box-sizing:border-box;padding:12px;margin-top:6px;border:1px solid #ccd6df;border-radius:10px;font:inherit}

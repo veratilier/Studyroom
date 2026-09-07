@@ -1,3 +1,4 @@
+import {completion} from './api-provider.mjs';
 import {createServer} from 'node:http';
 import {Readable} from 'node:stream';
 import {mkdirSync,readFileSync} from 'node:fs';
@@ -22,7 +23,8 @@ export function createAgentServer(config,run=codexTurn){
   const agent={async run(model,params,context={}){
     if(running>=2)throw Object.assign(Error('学习助手正在处理其他内容，请稍后再试。'),{status:429});
     running++;
-    try{return await run({binary:config.binary||'codex',cwd,home,model:config.model,messages:params.messages,
+    try{if(!account.legacy){const settings=auth.ai(account);if(!settings)throw Object.assign(Error('请先在我的课件中配置自己的 AI API。'),{status:400});return await (config.complete||completion)(settings,params);}
+    return await run({binary:config.binary||'codex',cwd,home,model:config.model,messages:params.messages,
       threadId:context.key?local.getThread(context.key):undefined,
       onThread:id=>{if(context.key)local.setThread(context.key,id);}})}finally{running--;}
   }};

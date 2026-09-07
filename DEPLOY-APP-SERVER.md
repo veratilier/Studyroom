@@ -77,3 +77,13 @@
 - 本实现是同一维护者 VPS 内的应用级账号隔离，保留现有无工具 Codex profile。不要给学习助手启用文件/终端工具或共享额外 MCP 服务。
 
 部署后验收：原主人认领可见旧课件；朋友注册为空库；两账号交叉访问文件/聊天/整理接口返回 404；改密和退出后的旧令牌返回 401；新课件上传、整理、词卡和课程聊天正常。旧单口令 `/session` 在 VPS 不再开放。当前 Worker 单独部署模式仍为旧版单人服务，不支持这套账号 UI。
+
+### 朋友自己的 AI API
+
+原主人认领账号继续使用 VPS Codex。其他账号在「我的课件 → 我的 AI 连接」填写 HTTPS Base URL（通常以 `/v1` 结束）、模型名和 API Key，支持 [OpenAI Chat Completions 格式](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create/)。上传后的梳理、词汇提取和课程聊天均调用该账号的服务；未配置不会回退到主人的 Codex。
+
+保存不触发付费测试请求，实际整理时验证连接。页面说明课件文字将交给所选服务、费用由其账号承担。模型须能按提示返回 JSON。接口发送 model/messages/stream=false 以兼容不同服务商，不要求特定模型参数。
+
+Key 用 SESSION_SECRET 派生密钥进行 AES-256-GCM 加密，绑定账号 ID，仅服务器解密；GET 不返回 Key。留空保留已存 Key，改地址必须重填，也可移除连接。请随数据库安全备份 SESSION_SECRET；更换它后用户需要重新保存 API Key。
+
+外连仅支持有公开 IPv4 地址的 HTTPS 443 服务，拒绝内网/本机和重定向，DNS 结果验证后固定到本次连接；请求最多 90 秒、响应最多 2 MB。API 失败显示通用错误，不转发可能含密钥的服务商正文。13 项测试通过，包含账户路由与密钥隔离；未使用真实收费 API 测试。

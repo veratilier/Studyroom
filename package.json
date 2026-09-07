@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check docs/app.js && node --check docs/library.js && node --check docs/extract.mjs && node --check worker/index.mjs && node --check agent-server/server.mjs && node --check agent-server/codex.mjs && node --check docs/chat.js && node --check agent-server/accounts.mjs",
+    "check": "node --check docs/app.js && node --check docs/library.js && node --check docs/extract.mjs && node --check worker/index.mjs && node --check agent-server/server.mjs && node --check agent-server/codex.mjs && node --check docs/chat.js && node --check agent-server/accounts.mjs && node --check agent-server/api-provider.mjs",
     "dev:api": "wrangler dev --config worker/wrangler.jsonc",
     "deploy:api": "wrangler deploy --config worker/wrangler.jsonc",
     "start:agent": "node --env-file=.env agent-server/server.mjs"

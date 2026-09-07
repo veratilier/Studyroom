@@ -16,7 +16,7 @@
   }
   function setLocked(){
     currentUser=null;unlocked=false;courses=[];selected=null;staged=null;selectionVersion++;
-    find('#libraryConnected').hidden=true;find('#unlockLibrary').hidden=!base;
+    find('#aiSettings').hidden=true;find('#aiForm').reset();find('#libraryConnected').hidden=true;find('#unlockLibrary').hidden=!base;
     find('#courseList').replaceChildren();resetUpload();subjects();
     find('#subject').value='';find('#lecture').innerHTML=builtin;
     window.studyroomSetAccount(null);window.studyroomSelectCourse('');find('#uploadCourse').reset();
@@ -49,7 +49,7 @@
       find('#unlockLibrary').hidden=true;find('#libraryConnected').hidden=false;
       const old=find('#lecture').value;subjects();courseOptions();
       if(Array.from(find('#lecture').options).some(o=>o.value===old))find('#lecture').value=old;
-      cards();status(`课件库已连接 · ${courses.length} 份上传资料`);
+      const ai=await api('/account/ai');if(token!==session)return;find('#aiSettings').hidden=ai.owner;find('#aiForm').elements.baseUrl.value=ai.baseUrl;find('#aiForm').elements.model.value=ai.model;find('#aiStatus').textContent=ai.configured?'连接已保存，整理课件时使用。':'请先设置 AI 连接，再整理课件。';cards();status(`课件库已连接 · ${courses.length} 份上传资料`);
     }catch(e){status(e.message)}finally{loading=false;}
   }
   function toStudy(course){
@@ -111,6 +111,8 @@
   find('#lockLibrary').onclick=async()=>{try{await api('/account/logout',{method:'POST'});}catch(err){status(err.message);return;}remember('');setLocked();cards();status('已退出登录。');};
   find('#accountMode').onchange=()=>{find('#registrationFields').hidden=find('#accountMode').value!=='register';find('#libraryPassword').autocomplete=find('#accountMode').value==='register'?'new-password':'current-password';};
   find('#changePassword').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{const data=await api('/account/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});remember(data.token);e.target.reset();status('密码已修改，其他登录已失效。');}catch(err){status(err.message)}finally{button.disabled=false}};
+  find('#aiForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{await api('/account/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});e.target.elements.apiKey.value='';find('#aiStatus').textContent='已保存；实际整理时会调用所选服务。';}catch(err){find('#aiStatus').textContent=err.message}finally{button.disabled=false}};
+  find('#clearAI').onclick=async()=>{try{await api('/account/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clear:true})});find('#aiForm').reset();find('#aiStatus').textContent='连接已移除。';}catch(err){find('#aiStatus').textContent=err.message}};
   find('#refreshLibrary').onclick=refresh;
   find('#subject').onchange=()=>{courseOptions();cards();select(find('#lecture').value);find('#uploadSubject').value=find('#subject').value;};
   find('#courseFile').onchange=()=>{resetUpload();const f=find('#courseFile').files[0];if(f&&!find('#uploadTitle').value)find('#uploadTitle').value=f.name.replace(/\.[^.]+$/,'');};
