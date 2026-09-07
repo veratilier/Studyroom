@@ -12,11 +12,11 @@
     if(!base) throw Error('课件上传服务还未接入，请稍后再试。');
     const session=token;let res;try{res=await fetch(base+path,{...options,cache:'no-store',headers:{Authorization:`Bearer ${token}`,...options.headers}})}catch{throw Error('课件服务连接失败，请检查网络后重试。')}
     if(session!==token)throw Error('登录状态已变化，请重新操作。');if(!res.ok){let body;try{body=await res.json()}catch{}if(res.status===401){remember('');setLocked();}throw Object.assign(Error(body?.error||`请求失败（${res.status}），请稍后重试。`),{status:res.status});}
-    return options.blob?res.blob():res.json();
+    const data=await (options.blob?res.blob():res.json());if(session!==token)throw Error('登录状态已变化，请重新操作。');return data;
   }
   function setLocked(){
-    currentUser=null;unlocked=false;courses=[];selected=null;staged=null;selectionVersion++;
-    find('#aiSettings').hidden=true;find('#aiForm').reset();find('#libraryConnected').hidden=true;find('#unlockLibrary').hidden=!base;
+    window.studyroomResetChat?.();currentUser=null;unlocked=false;courses=[];selected=null;staged=null;selectionVersion++;
+    find('#changePassword').reset();find('#aiSettings').hidden=true;find('#aiForm').reset();find('#libraryConnected').hidden=true;find('#unlockLibrary').hidden=!base;
     find('#courseList').replaceChildren();resetUpload();subjects();
     find('#subject').value='';find('#lecture').innerHTML=builtin;
     window.studyroomSetAccount(null);window.studyroomSelectCourse('');find('#uploadCourse').reset();
@@ -24,7 +24,7 @@
   function subjects(){
     const current=find('#subject').value;
     const names=[...new Set(courses.map(c=>c.subject))];
-    find('#subject').innerHTML=names.map(n=>`<option value="${safe(n)}">${safe(n)}</option>`).join('');
+    find('#subject').innerHTML=names.map(n=>`<option value="${safe(n)}">${safe(n)}</option>`).join('')||'<option value="">暂无学科</option>';
     find('#subjectNames').innerHTML=names.map(n=>`<option value="${safe(n)}"></option>`).join('');
     find('#subject').value=names.includes(current)?current:(names[0]||'');
   }
@@ -138,5 +138,6 @@
   };
   window.studyroomLibraryRefresh=refresh;window.studyroomLectureChange=select;
   find('#uploadSubject').value='';
+  window.addEventListener('online',()=>{if(token)refresh();});
   window.studyroomTab('library');refresh();
 })();
