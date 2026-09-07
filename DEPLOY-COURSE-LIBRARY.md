@@ -1,5 +1,7 @@
 # Studyroom 课件库部署交接
 
+Vera 已选择复用 VPS 上的 Codex：优先参阅 [DEPLOY-APP-SERVER.md](DEPLOY-APP-SERVER.md)。下文仅适用于另选 Workers AI 的部署方式，不必同时创建两套后端。
+
 此改动保留 GitHub Pages 的 `main /docs` 和 `study.r-vera.com`，新增独立 Cloudflare Worker API。不要用新项目覆盖现有网站，不迁移域名，不重建已有词表或学习进度。
 
 ## 已实现

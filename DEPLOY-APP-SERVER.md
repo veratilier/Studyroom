@@ -1,0 +1,51 @@
+# 用 VPS 上现有的 Codex 接入 Studyroom
+
+本方案运行在 VPS，Mac 无需保持开机。前端仍由 GitHub Pages 托管在 `study.r-vera.com`。浏览器只连接带口令认证的课件 HTTP 服务；服务在本机通过 stdio 启动现有 `codex app-server`。不把 app-server 的原始端口暴露给浏览器。
+
+## 本版本已实现
+
+- 沿用上传、学科分类、课件梳理、原件下载和单词练习。
+- Codex 替代 Workers AI 生成梳理与词汇；每段独立分析，失败可继续。
+- 每份上传课件增加“问这份课件”：解释、出题、跟进作答。
+- 每份课件独立 Codex thread，存储 thread ID 后可在服务重启后恢复；网页保留最近 50 条问答，数据库最多 500 条/课件。
+- 问答 request ID 去重、每课件最多一个未完成请求、每日分析与问答共用调用限额。
+- 原件保存到 VPS 的私人目录，课程、问答、会话映射保存到 SQLite；不需要 D1、R2 或 Workers AI。
+
+这是 **VPS 后端替代部署方案**，不要同时照着两份说明创建两套正式课件库。若之前已经使用 Worker/R2 上传真实资料，先做数据迁移；此版本不会自动迁移旧云端资料。
+
+## 给 VPS 上 Codex 的部署步骤
+
+1. 拉取 PR #1 的最新分支 `feature/course-library`。先核实 VPS 上已有的 `codex` 可执行路径、版本、Node.js 版本；使用 Node.js 24（内置 SQLite）。复用已有 Codex 安装，不覆盖原服务或原配置。
+2. 使用独立的非特权服务账户，或隔离容器。为 Studyroom 配置独立数据目录和独立 `STUDYROOM_CODEX_HOME`，均放在仓库和网站目录之外；该 profile 不装 MCP、插件或其他项目指令。既有 Codex profile 保持原样。使用同一现有 Codex 程序，通过 `CODEX_HOME=<独立目录> codex login` 在该运行环境正常登录；由 Vera 完成所需登录，不复制或在聊天中展示凭据。
+3. 在私有配置文件填写环境变量，设为仅服务用户可读（0600）：
+
+   - `LOGIN_PASSWORD`：课件库访问口令。
+   - `SESSION_SECRET`：独立的至少 32 字符随机值。
+   - `STUDYROOM_DATA_DIR`：私人原件和 SQLite 目录的绝对路径。
+   - `STUDYROOM_CODEX_HOME`：独立 Codex profile 的绝对路径。
+   - `CODEX_BIN`：第 1 步找到的现有 Codex 可执行文件绝对路径。
+   - `CODEX_MODEL`：可选；留空使用该 profile 已配置的模型，不强制替用户换模型。
+   - `ALLOWED_ORIGIN=https://study.r-vera.com`
+   - `PORT=8788`（如占用则换未使用端口）。
+   - `DAILY_AI_CALL_LIMIT=30`：每日分析与问答总次数，硬上限 100；这是请求数而非费用预算。
+
+4. 在仓库中执行 `node --env-file=<私有配置文件绝对路径> agent-server/server.mjs`。服务只监听 `127.0.0.1`。确认启动后用 systemd 等现有进程管理方式常驻，WorkingDirectory 设为本仓库，使用上述同一 Node 24 和配置文件；不要把口令直接写进 unit 或 GitHub。
+5. 通过已有反向代理或 Cloudflare named tunnel，将一个空闲 API 子域名的 HTTPS 流量转发到上述回环端口。先检查现有路由，不能覆盖 Vesper、Nest 等其他服务。不需要直接开放 app-server 的 WebSocket。若需要付费或更改账户安全配置，先取得 Vera 的确认。
+6. 将实际 HTTPS API 地址填入 `docs/library-config.js` 的 `STUDYROOM_API`。前端中没有服务口令、Codex 登录凭据或主机命令。
+7. 先用非私密资料验证：解锁 → 读取/确认上传 → 整理 → 原文核对 → 单词练习 → 提问 → 重启服务 → 在同一课件继续提问 → 切换课件确保历史不串。再合并 PR 更新 Pages，并验证手机 PWA。
+
+## 运行边界
+
+- 本仓库的 app-server 通信已按官方协议实现初始化、thread/start 或 resume、turn/start、最终回答事件和超时停止。当前环境没有 Codex 程序和 VPS 登录会话，因此未验证实际安装版本、真实登录与模型响应；上线前需按该版本生成/核对 schema。如受管理配置阻止，不要降低已有审批要求来绕过。
+- 该接入只提供学习功能，不向网页开放终端、文件修改、任意 RPC 或工具审批。turn 使用限制到学习工作目录的只读沙箱；服务拒绝所有来自 app-server 的交互式工具/权限请求，并关闭内置 web search。主机应使用上述独立账户/profile，不依赖提示词作为主机隔离手段。
+- Codex 子进程不会继承网页登录口令或签名密钥。服务使用当前 profile 的模型默认设置；消耗该登录方式对应额度，不承诺免费或与其他登录渠道额度互通。
+- 每次生成限时 80 秒、最多同时两次生成。超时/断线显示错误并终止该子进程，已保存课件和已完成部分保留。问答暂时按完整回答显示，不是逐字流式 UI；重新打开课件或刷新回答可核实之前请求的结果。
+- 问答会携带当前课件提取的全文及最近八次问答；大课件可能超出所选模型的上下文限制，须拆分或使用符合需求的模型，不能静默截断。
+- SQLite 数据目录和独立 Codex profile 均需备份，并保留文件权限；只备份源码不能恢复上传资料与会话。现有浏览器词卡进度仍不自动云同步。
+- 原件上限 20 MB、300 页/段、12 万字符，暂不支持扫描件 OCR。AI 解释仍需核实，问答页码不像结构化梳理引用那样经过逐条服务端匹配验证。
+
+## 验证
+
+`npm test` 覆盖原课件库测试、真实子进程的模拟 app-server 协议、事件先于应答、超时结束，以及本机 HTTP → SQLite/文件存储 → agent 替身的上传、问答去重、会话隔离和重启恢复。不调用真实模型，不改动正式课件。
+
+官方接口说明：https://learn.chatgpt.com/docs/app-server

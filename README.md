@@ -33,3 +33,7 @@ python3 -m http.server 8000 --directory docs
 ## 验证
 
 Node.js 24：运行 `npm test` 和 `npm run check`。测试使用内存数据库、文件存储替身及 AI 替身，不接触正式数据；实际部署仍需验证 Cloudflare 绑定和真实 AI 输出。
+
+## VPS 上的 Codex 学习助手
+
+已提供 `agent-server/`：复用 VPS 上现有 Codex 程序，以本地 SQLite/私人文件目录替代 Cloudflare 后端，并增加按课件持续问答。优先按 [VPS 接入说明](DEPLOY-APP-SERVER.md) 部署；现有 Worker 方案仍可选。当前两种方案都需要完成对应主机/账户配置，不能仅合并前端就视为上线。

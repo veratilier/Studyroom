@@ -4,7 +4,7 @@
   const BIO='BIO101 · 生物学', TOKEN='studyroom-library-session';
   const base=String(window.STUDYROOM_API||'').replace(/\/$/,'');
   const builtin=find('#lecture').innerHTML;
-  let token='',courses=[],selected=null,staged=null,busy=false,uploading=false,loading=false,selectionVersion=0,unlocked=false;
+  let assistantKind='',token='',courses=[],selected=null,staged=null,busy=false,uploading=false,loading=false,selectionVersion=0,unlocked=false;
   try {token=sessionStorage.getItem(TOKEN)||'';}catch{}
   function status(message){find('#libraryStatus').textContent=message;}
   function remember(value){token=value;try{value?sessionStorage.setItem(TOKEN,value):sessionStorage.removeItem(TOKEN)}catch{}}
@@ -46,7 +46,7 @@
     if(!token){setLocked();status('解锁后可上传课件，并在其他设备查看已保存的课件与梳理。');cards();return;}
     loading=true;const session=token;
     try{
-      const data=await api('/courses');if(token!==session)return;courses=data.courses;unlocked=true;
+      const data=await api('/courses');if(token!==session)return;courses=data.courses;assistantKind=data.assistant;unlocked=true;
       find('#unlockLibrary').hidden=true;find('#libraryConnected').hidden=false;
       const old=find('#lecture').value;subjects();courseOptions();
       if(Array.from(find('#lecture').options).some(o=>o.value===old))find('#lecture').value=old;
@@ -95,6 +95,7 @@
     const total=course.total||0,completed=course.completed||0;
     target.innerHTML=`<div class="note"><p class="eyebrow">${safe(course.subject)}</p><h3>${safe(course.title)}</h3><p class="quiet">已整理 ${completed} / ${total} 部分 · ${course.words.length} 个词汇</p><p id="analysisStatus" role="status" aria-live="polite">${safe(course.error||'AI 辅助整理，仅覆盖已提取的文字；请对照原文核实。')}</p><div class="actions"><button class="button secondary" id="downloadCourse">下载原课件</button>${completed<total?`<button class="button" id="continueAnalysis" ${busy?'disabled':''}>${busy?'整理中…':'继续整理'}</button>`:''}<button class="button secondary" id="courseWords">练习词汇</button></div><details class="course-edit"><summary>修改分类与名称</summary><form id="renameCourse"><label>学科<input name="subject" value="${safe(course.subject)}" maxlength="80" required list="subjectNames"></label><label>课件名称<input name="title" value="${safe(course.title)}" maxlength="160" required></label><button class="button secondary">保存分类</button></form></details></div>`+
       (course.parts||[]).map(part=>`<div class="part-label">第 ${part.part+1} 部分</div>`+part.sections.map(s=>`<article class="note"><h3>${safe(s.heading)}</h3><ul>${s.points.map(p=>`<li>${safe(p)}</li>`).join('')}</ul><details><summary>对照原文 · 第 ${s.page} 页 / 段</summary><blockquote>${safe(s.quote)}</blockquote><p class="source-text">${safe((course.pages||[]).find(p=>p.page===s.page)?.text||'')}</p></details></article>`).join('')).join('');
+    if(assistantKind==='codex')window.studyroomMountChat?.({courseId:course.id,target,api,isCurrent:()=>selected===course.id&&unlocked});
     find('#downloadCourse').onclick=async e=>{e.target.disabled=true;try{const blob=await api(`/courses/${course.id}/file`,{blob:true});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=course.filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(err){find('#analysisStatus').textContent=err.message}finally{e.target.disabled=false}};
     find('#courseWords').onclick=()=>window.studyroomTab('study');
     if(find('#continueAnalysis'))find('#continueAnalysis').onclick=()=>runAnalysis(course.id);
@@ -122,7 +123,7 @@
         const {extract}=await import('./extract.mjs');
         const data=await extract(file,status);if(!unlocked||find('#courseFile').files[0]!==file)throw Error('文件或登录状态已变化，请重新读取。');staged={file,...data};
         const preview=find('#extractionPreview');preview.hidden=false;
-        preview.innerHTML=`<p>读到了 ${data.pages.length} 页 / 段。确认后将原文件和文字保存到私人课件库，并使用 Cloudflare AI 辅助整理。</p>${data.warnings.map(w=>`<p class="correction">${safe(w)}</p>`).join('')}<details><summary>查看提取文字</summary><pre>${safe(data.pages.filter(p=>p.text.trim()).slice(0,2).map(p=>`第 ${p.page} 页 / 段\n${p.text.slice(0,1500)}`).join('\n\n'))}</pre></details>`;
+        preview.innerHTML=`<p>读到了 ${data.pages.length} 页 / 段。确认后将原文件和文字保存到私人课件库，并交给已连接的学习助手整理。</p>${data.warnings.map(w=>`<p class="correction">${safe(w)}</p>`).join('')}<details><summary>查看提取文字</summary><pre>${safe(data.pages.filter(p=>p.text.trim()).slice(0,2).map(p=>`第 ${p.page} 页 / 段\n${p.text.slice(0,1500)}`).join('\n\n'))}</pre></details>`;
         button.textContent='确认上传并整理';find('#cancelUpload').hidden=false;status('请检查提取预览，再确认上传。');return;
       }
       const form=new FormData();form.set('file',staged.file);form.set('pages',JSON.stringify(staged.pages));form.set('subject',find('#uploadSubject').value.trim());form.set('title',find('#uploadTitle').value.trim());
