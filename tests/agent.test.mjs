@@ -26,7 +26,7 @@ test('VPS HTTP service persists uploads and course threads; duplicate questions 
  t.after(async()=>{app.server.closeAllConnections();app.server.close();await once(app.server,'close');rmSync(root,{recursive:true,force:true});});
  let url='http://127.0.0.1:'+app.server.address().port,token='';
  async function request(path,method='GET',body){const headers={Origin:'https://study.r-vera.com',...(token?{Authorization:'Bearer '+token}:{})};if(body&&!(body instanceof FormData)){headers['Content-Type']='application/json';body=JSON.stringify(body);}return fetch(url+path,{method,headers,body});}
- token=(await (await request('/session','POST',{password:config.password})).json()).token;
+ token=(await (await request('/account/register','POST',{name:'owner',password:config.password,legacyPassword:config.password})).json()).token;
  async function upload(text){const f=new FormData();f.set('file',new File([text],'lecture.txt'));f.set('subject','BIO101');f.set('title','Lecture');f.set('pages',JSON.stringify([{page:1,text}]));return (await request('/courses','POST',f)).json();}
  const a=await upload('Photosynthesis converts energy.');const b=await upload('Mitosis divides a cell.');
  const id=crypto.randomUUID();
@@ -40,4 +40,28 @@ test('VPS HTTP service persists uploads and course threads; duplicate questions 
  await request(`/courses/${b.id}/chat`,'POST',{question:'解释细胞',request_id:crypto.randomUUID()});assert.equal(calls[2].threadId,undefined);
  const data=await (await request(`/courses/${a.id}/chat`)).json();assert.equal(data.messages.length,2);
  assert.equal(await (await request(`/courses/${b.id}/file`)).text(),'Mitosis divides a cell.');
+ const ownerToken=token;const apiCalls=[];config.complete=async(settings,params)=>{apiCalls.push({settings,params});return {response:JSON.stringify({answer:'API answer'})}};
+ config.inviteCode=crypto.randomUUID();
+ const friend=await (await request('/account/register','POST',{name:'friend',password:config.password,inviteCode:config.inviteCode})).json();token=friend.token;
+ assert.ok(token);assert.deepEqual((await (await request('/courses')).json()).courses,[]);
+ for(const suffix of ['', '/file','/chat'])assert.equal((await request(`/courses/${a.id}${suffix}`)).status,404);
+ assert.equal((await request(`/courses/${a.id}/analyze`,'POST')).status,404);
+ const own=await upload('Photosynthesis converts energy.');assert.notEqual(own.id,a.id);
+ assert.equal((await request(`/courses/${own.id}/chat`,'POST',{question:'解释',request_id:crypto.randomUUID()})).status,400);
+ const key='test-secret-'+crypto.randomUUID();
+ assert.equal((await request('/account/ai','POST',{baseUrl:'http://127.0.0.1',model:'test-model',apiKey:key})).status,400);
+ assert.equal((await request('/account/ai','POST',{baseUrl:'https://api.example.com/v1',model:'test-model',apiKey:key})).status,200);
+ const publicSettings=await (await request('/account/ai')).text();assert.ok(!publicSettings.includes(key));assert.ok(!publicSettings.includes('apiKey'));
+ assert.equal((await request('/account/ai','POST',{baseUrl:'https://other.example.com/v1',model:'test-model'})).status,400);
+ await request(`/courses/${own.id}/chat`,'POST',{question:'解释',request_id:crypto.randomUUID()});assert.equal(apiCalls.length,1);assert.equal(apiCalls[0].settings.apiKey,key);assert.equal(calls.length,3);
+
+ const newPassword=crypto.randomUUID();const changed=await (await request('/account/password','POST',{currentPassword:config.password,password:newPassword})).json();
+ assert.ok(changed.token);assert.equal((await request('/courses')).status,401);
+ token=changed.token;assert.equal((await request('/courses')).status,200);
+ await request('/account/logout','POST');assert.equal((await request('/courses')).status,401);
+ assert.equal((await request('/account/login','POST',{name:'friend',password:config.password})).status,401);
+ token=(await (await request('/account/login','POST',{name:'friend',password:newPassword})).json()).token;assert.ok(token);
+ token=ownerToken;assert.equal((await (await request('/account/ai')).json()).configured,false);assert.equal((await (await request('/courses')).json()).courses.length,2);
+ assert.equal((await request('/account/register','POST',{name:'intruder',password:newPassword,legacyPassword:config.password})).status,403);
+
 });
