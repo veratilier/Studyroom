@@ -1,52 +1,51 @@
 'use strict';
 (() => {
   const find=s=>document.querySelector(s), safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const BIO='BIO101 · 生物学', TOKEN='studyroom-library-session';
+  const TOKEN='studyroom-account-session';
   const base=String(window.STUDYROOM_API||'').replace(/\/$/,'');
-  const builtin=find('#lecture').innerHTML;
-  let assistantKind='',token='',courses=[],selected=null,staged=null,busy=false,uploading=false,loading=false,selectionVersion=0,unlocked=false;
+  const builtin='<option value="">暂无课件</option>';
+  let currentUser=null,assistantKind='',token='',courses=[],selected=null,staged=null,busy=false,uploading=false,loading=false,selectionVersion=0,unlocked=false;
   try {token=sessionStorage.getItem(TOKEN)||'';}catch{}
   function status(message){find('#libraryStatus').textContent=message;}
   function remember(value){token=value;try{value?sessionStorage.setItem(TOKEN,value):sessionStorage.removeItem(TOKEN)}catch{}}
   async function api(path,options={}) {
-    if(!base) throw Error('课件上传服务还未接入，原有词卡可继续使用。');
-    let res;try{res=await fetch(base+path,{...options,cache:'no-store',headers:{Authorization:`Bearer ${token}`,...options.headers}})}catch{throw Error('课件服务连接失败，请检查网络后重试。')}
-    if(!res.ok){let body;try{body=await res.json()}catch{}if(res.status===401){remember('');setLocked();}throw Object.assign(Error(body?.error||`请求失败（${res.status}），请稍后重试。`),{status:res.status});}
+    if(!base) throw Error('课件上传服务还未接入，请稍后再试。');
+    const session=token;let res;try{res=await fetch(base+path,{...options,cache:'no-store',headers:{Authorization:`Bearer ${token}`,...options.headers}})}catch{throw Error('课件服务连接失败，请检查网络后重试。')}
+    if(session!==token)throw Error('登录状态已变化，请重新操作。');if(!res.ok){let body;try{body=await res.json()}catch{}if(res.status===401){remember('');setLocked();}throw Object.assign(Error(body?.error||`请求失败（${res.status}），请稍后重试。`),{status:res.status});}
     return options.blob?res.blob():res.json();
   }
   function setLocked(){
-    unlocked=false;courses=[];selected=null;staged=null;selectionVersion++;
+    currentUser=null;unlocked=false;courses=[];selected=null;staged=null;selectionVersion++;
     find('#libraryConnected').hidden=true;find('#unlockLibrary').hidden=!base;
     find('#courseList').replaceChildren();resetUpload();subjects();
-    find('#subject').value=BIO;find('#lecture').innerHTML=builtin;
-    window.studyroomSelectCourse('L01');
+    find('#subject').value='';find('#lecture').innerHTML=builtin;
+    window.studyroomSetAccount(null);window.studyroomSelectCourse('');find('#uploadCourse').reset();
   }
   function subjects(){
     const current=find('#subject').value;
-    const names=[...new Set([BIO,...courses.map(c=>c.subject)])];
+    const names=[...new Set(courses.map(c=>c.subject))];
     find('#subject').innerHTML=names.map(n=>`<option value="${safe(n)}">${safe(n)}</option>`).join('');
     find('#subjectNames').innerHTML=names.map(n=>`<option value="${safe(n)}"></option>`).join('');
-    find('#subject').value=names.includes(current)?current:BIO;
+    find('#subject').value=names.includes(current)?current:(names[0]||'');
   }
   function courseOptions(){
     const subject=find('#subject').value;
     const custom=courses.filter(c=>c.subject===subject);
-    find('#lecture').innerHTML=(subject===BIO?builtin:'')+custom.map(c=>`<option value="${safe(c.id)}">${safe(c.title)}${c.status==='ready'?'':' · 待整理'}</option>`).join('');
+    find('#lecture').innerHTML=custom.map(c=>`<option value="${safe(c.id)}">${safe(c.title)}${c.status==='ready'?'':' · 待整理'}</option>`).join('');
     if(!find('#lecture').options.length)find('#lecture').innerHTML='<option value="">暂无课件</option>';
   }
   function cards(){
     const subject=find('#subject').value,custom=courses.filter(c=>c.subject===subject);
-    find('#courseList').innerHTML=(subject===BIO?'<article class="note"><span class="pill">已收录</span><h3>BIO101 · 第一讲课件与五讲词表</h3><p>145 个词条及第一讲课堂线索，可直接练习。</p><button class="button secondary" id="openBuiltin">打开 BIO101</button></article>':'')+custom.map(c=>`<article class="note course-card"><span class="pill">${c.status==='ready'?'已整理':'待继续整理'}</span><h3>${safe(c.title)}</h3><p class="quiet">${safe(c.subject)} · ${safe(c.filename)}</p><button class="button secondary" data-open-course="${safe(c.id)}">打开课件</button></article>`).join('')+(!custom.length&&subject!==BIO?'<p class="quiet">这个学科还没有课件，上传后会出现在这里。</p>':'');
-    if(find('#openBuiltin'))find('#openBuiltin').onclick=()=>{find('#lecture').value='L01';select('L01');window.studyroomTab('notes');};
+    find('#courseList').innerHTML=custom.map(c=>`<article class="note course-card"><span class="pill">${c.status==='ready'?'已整理':'待继续整理'}</span><h3>${safe(c.title)}</h3><p class="quiet">${safe(c.subject)} · ${safe(c.filename)}</p><button class="button secondary" data-open-course="${safe(c.id)}">打开课件</button></article>`).join('')+(!custom.length?'<p class="quiet">这个学科还没有课件，上传后会出现在这里。</p>':'');
     document.querySelectorAll('[data-open-course]').forEach(b=>b.onclick=()=>{find('#lecture').value=b.dataset.openCourse;select(b.dataset.openCourse);window.studyroomTab('notes');});
   }
   async function refresh(){
     if(loading)return;
-    if(!base){setLocked();status('课件上传服务尚未接入。原有 BIO101 词卡与课堂线索仍可使用。');cards();return;}
-    if(!token){setLocked();status('解锁后可上传课件，并在其他设备查看已保存的课件与梳理。');cards();return;}
+    if(!base){setLocked();status('课件上传服务尚未接入。');cards();return;}
+    if(!token){setLocked();status('登录后可上传课件，并在其他设备查看已保存的课件与梳理。');cards();return;}
     loading=true;const session=token;
     try{
-      const data=await api('/courses');if(token!==session)return;courses=data.courses;assistantKind=data.assistant;unlocked=true;
+      const account=await api('/account');if(token!==session)return;if(currentUser!==account.user.id){currentUser=account.user.id;window.studyroomSetAccount(currentUser);}const data=await api('/courses');if(token!==session)return;courses=data.courses;assistantKind=data.assistant;unlocked=true;
       find('#unlockLibrary').hidden=true;find('#libraryConnected').hidden=false;
       const old=find('#lecture').value;subjects();courseOptions();
       if(Array.from(find('#lecture').options).some(o=>o.value===old))find('#lecture').value=old;
@@ -63,7 +62,7 @@
   }
   async function select(id){
     const version=++selectionVersion;
-    if(!id||id==='all'||/^L\d+$/.test(id)){selected=null;window.studyroomSelectCourse(id||'L01');return;}
+    if(!id){selected=null;window.studyroomSelectCourse('');return;}
     selected=id;
     window.studyroomSelectCourse(id,{id,title:'正在读取课件…',words:[],parts:[],loading:true});
     try{
@@ -107,9 +106,11 @@
   function resetUpload(){staged=null;find('#extractionPreview').hidden=true;find('#extractionPreview').replaceChildren();find('#uploadButton').textContent='读取课件';find('#cancelUpload').hidden=true;}
   find('#unlockLibrary').onsubmit=async e=>{
     e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;
-    try{const data=await api('/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:find('#libraryPassword').value})});remember(data.token);find('#libraryPassword').value='';await refresh();}catch(err){status(err.message)}finally{button.disabled=false;}
+    try{const data=await api('/account/'+find('#accountMode').value,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:find('#accountName').value,password:find('#libraryPassword').value,inviteCode:find('#inviteCode').value,legacyPassword:find('#legacyPassword').value})});remember(data.token);find('#libraryPassword').value='';find('#legacyPassword').value='';find('#inviteCode').value='';await refresh();}catch(err){status(err.message)}finally{button.disabled=false;}
   };
-  find('#lockLibrary').onclick=()=>{remember('');setLocked();cards();status('课件库已锁定。');};
+  find('#lockLibrary').onclick=async()=>{try{await api('/account/logout',{method:'POST'});}catch(err){status(err.message);return;}remember('');setLocked();cards();status('已退出登录。');};
+  find('#accountMode').onchange=()=>{find('#registrationFields').hidden=find('#accountMode').value!=='register';find('#libraryPassword').autocomplete=find('#accountMode').value==='register'?'new-password':'current-password';};
+  find('#changePassword').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{const data=await api('/account/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});remember(data.token);e.target.reset();status('密码已修改，其他登录已失效。');}catch(err){status(err.message)}finally{button.disabled=false}};
   find('#refreshLibrary').onclick=refresh;
   find('#subject').onchange=()=>{courseOptions();cards();select(find('#lecture').value);find('#uploadSubject').value=find('#subject').value;};
   find('#courseFile').onchange=()=>{resetUpload();const f=find('#courseFile').files[0];if(f&&!find('#uploadTitle').value)find('#uploadTitle').value=f.name.replace(/\.[^.]+$/,'');};
@@ -134,6 +135,6 @@
     }catch(err){status(err.message)}finally{button.disabled=false;uploading=false;}
   };
   window.studyroomLibraryRefresh=refresh;window.studyroomLectureChange=select;
-  find('#uploadSubject').value=BIO;
-  refresh();
+  find('#uploadSubject').value='';
+  window.studyroomTab('library');refresh();
 })();

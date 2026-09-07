@@ -1,3 +1,7 @@
+# Studyroom · 独立私人学习室
+
+当前版本使用 VPS Codex app-server，支持邀请码注册、独立账号、自己修改密码。新用户为空库，内置 BIO 资料已移除。升级顺序与旧库认领见 [部署说明](DEPLOY-APP-SERVER.md#独立账号版本本次升级)。
+
 # Studyroom · 学习室
 
 网站：https://study.r-vera.com
@@ -14,7 +18,7 @@ python3 -m http.server 8000 --directory docs
 
 ## 内容
 
-`docs/` 包含页面、样式、词卡与拼写逻辑、145 个词条、第一讲 PDF 课件和原始 XLSX 词表。图标来自用户提供的书本图片，保持原图，仅导出所需尺寸。
+`docs/` 包含页面、样式、词卡与拼写逻辑与私人课件管理。图标来自用户提供的书本图片，保持原图，仅导出所需尺寸。
 
 ## PWA
 
