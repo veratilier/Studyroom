@@ -1,0 +1,1 @@
+Vendored PDF.js 5.6.205 (Apache-2.0) and JSZip 3.10.1 (MIT / GPLv3 dual license; used under MIT). Sources: https://github.com/mozilla/pdf.js and https://github.com/Stuk/jszip . Runtime requests stay on the Studyroom origin. Upgrades must keep PDF main and worker versions identical.

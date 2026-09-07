@@ -1,6 +1,6 @@
 'use strict';
-const CACHE = 'studyroom-shell-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'words.json', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
+const CACHE = 'studyroom-shell-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'library.js', 'library-config.js', 'extract.mjs', 'words.json', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
 });
