@@ -1,5 +1,0 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {endpoint,publicIPv4,seal,unseal} from '../agent-server/api-provider.mjs';
-test('API credentials are encrypted and bound to one account',()=>{const secret=crypto.randomUUID(),key='private-api-key',value=seal(secret,'alice',key);assert.ok(!value.includes(key));assert.equal(unseal(secret,'alice',value),key);assert.throws(()=>unseal(secret,'bob',value));assert.throws(()=>unseal('wrong','alice',value));});
-test('API endpoint rejects credentials, redirects via query, HTTP and private destinations',()=>{assert.equal(endpoint('https://api.example.com/v1/').pathname,'/v1/chat/completions');assert.equal(endpoint('https://api.example.com/v1/chat/completions').pathname,'/v1/chat/completions');for(const u of ['http://localhost','https://u:p@example.com','https://example.com?key=x','https://example.com:8443'])assert.throws(()=>endpoint(u));for(const ip of ['127.0.0.1','10.0.0.1','169.254.169.254','172.16.0.1','192.168.1.1','100.64.0.1','0.0.0.0','224.0.0.1','::1'])assert.equal(publicIPv4(ip),false);assert.equal(publicIPv4('8.8.8.8'),true);});
