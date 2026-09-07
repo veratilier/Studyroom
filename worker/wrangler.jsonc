@@ -1,0 +1,13 @@
+{
+  "name": "studyroom-api",
+  "main": "index.mjs",
+  "compatibility_date": "2026-09-07",
+  "vars": {
+    "ALLOWED_ORIGIN": "https://study.r-vera.com",
+    "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+    "DAILY_AI_CALL_LIMIT": "30"
+  },
+  "ai": { "binding": "AI" },
+  "d1_databases": [{ "binding": "DB", "database_name": "studyroom-library", "database_id": "REPLACE_WITH_DATABASE_ID", "migrations_dir": "migrations" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "studyroom-course-files" }]
+}

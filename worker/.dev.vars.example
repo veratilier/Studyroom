@@ -1,0 +1,3 @@
+# Empty template only. Set private values locally; never commit .dev.vars.
+LOGIN_PASSWORD=
+SESSION_SECRET=

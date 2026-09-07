@@ -8,3 +8,10 @@ dist/
 .dev.vars
 .dev.vars.*
 *.log
+
+node_modules/
+worker/.dev.vars
+worker/.wrangler/
+.env
+.env.*
+!*.example
