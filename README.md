@@ -26,7 +26,7 @@ python3 -m http.server 8000 --directory docs
 
 网站及仓库公开访问。学习进度仍保存在当前浏览器的 localStorage（`vera-bio101-progress-v1`），不会上传到 GitHub，也不自动跨设备同步。迁移保持同一域名；浏览器原有同域名进度可继续使用。
 
-新增课件库支持按学科和课件分类、上传 PDF/PPTX/XLSX/TXT/Markdown、AI 梳理及词汇练习。原件保存在私有 R2，整理结果保存在 D1；密码保护的 Workers API 负责访问和 AI 调用。后端尚需按 [部署说明](DEPLOY-COURSE-LIBRARY.md) 配置，`docs/library-config.js` 留空时上传功能不会启用。不要把 API Token、密码或私密资料提交到公开仓库。
+新增课件库支持按学科和课件分类、上传 PDF/PPTX/XLSX/TXT/Markdown、AI 梳理及词汇练习。当前后端部署在 VPS，原件保存在私人目录，整理结果与问答保存在 SQLite；口令保护的 API 复用独立登录的 Codex。实际配置见 [部署说明](DEPLOY-APP-SERVER.md)。不要把 API Token、密码或私密资料提交到公开仓库。
 
 同一个文件重复上传会打开已有课件；可在课件内修改分类。上传前先预览提取文字，再确认保存与 AI 整理；扫描件和图片中的内容暂不支持 OCR。AI 内容附原文出处，仍需核实。
 
@@ -36,4 +36,4 @@ Node.js 24：运行 `npm test` 和 `npm run check`。测试使用内存数据库
 
 ## VPS 上的 Codex 学习助手
 
-已提供 `agent-server/`：复用 VPS 上现有 Codex 程序，以本地 SQLite/私人文件目录替代 Cloudflare 后端，并增加按课件持续问答。优先按 [VPS 接入说明](DEPLOY-APP-SERVER.md) 部署；现有 Worker 方案仍可选。当前两种方案都需要完成对应主机/账户配置，不能仅合并前端就视为上线。
+已提供 `agent-server/`：复用 VPS 上现有 Codex 程序，以本地 SQLite/私人文件目录替代 Cloudflare 后端，并增加按课件持续问答。优先按 [VPS 接入说明](DEPLOY-APP-SERVER.md) 部署；现有 Worker 方案仍可选。当前已使用 VPS 方案，不需要再部署 Worker/D1/R2。

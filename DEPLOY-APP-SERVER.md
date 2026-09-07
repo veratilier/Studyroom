@@ -36,8 +36,8 @@
 
 ## 运行边界
 
-- 本仓库的 app-server 通信已按官方协议实现初始化、thread/start 或 resume、turn/start、最终回答事件和超时停止。当前环境没有 Codex 程序和 VPS 登录会话，因此未验证实际安装版本、真实登录与模型响应；上线前需按该版本生成/核对 schema。如受管理配置阻止，不要降低已有审批要求来绕过。
-- 该接入只提供学习功能，不向网页开放终端、文件修改、任意 RPC 或工具审批。turn 使用限制到学习工作目录的只读沙箱；服务拒绝所有来自 app-server 的交互式工具/权限请求，并关闭内置 web search。主机应使用上述独立账户/profile，不依赖提示词作为主机隔离手段。
+- 本仓库的 app-server 通信已按官方协议实现初始化、thread/start 或 resume、turn/start、最终回答事件和超时停止。已在 VPS 的 Codex 0.149.0 上核对 schema，并完成真实登录与模型响应验证。如受管理配置阻止，不要降低已有审批要求来绕过。
+- 该接入只提供学习功能，不向网页开放终端、文件修改、任意 RPC 或工具审批。turn 使用该安装版本支持的只读沙箱（禁止工具网络访问），并禁用 shell、执行器、应用、插件、浏览器、图像和多 agent 工具；systemd RootDirectory 仅映射运行时和 Studyroom 自己的目录，其他项目不在服务文件系统中。不要仅靠旧版本不识别的 readableRoots 字段实现隔离。服务拒绝所有来自 app-server 的交互式工具/权限请求，并关闭内置 web search。主机应使用上述独立账户/profile，不依赖提示词作为主机隔离手段。
 - Codex 子进程不会继承网页登录口令或签名密钥。服务使用当前 profile 的模型默认设置；消耗该登录方式对应额度，不承诺免费或与其他登录渠道额度互通。
 - 每次生成限时 80 秒、最多同时两次生成。超时/断线显示错误并终止该子进程，已保存课件和已完成部分保留。问答暂时按完整回答显示，不是逐字流式 UI；重新打开课件或刷新回答可核实之前请求的结果。
 - 问答会携带当前课件提取的全文及最近八次问答；大课件可能超出所选模型的上下文限制，须拆分或使用符合需求的模型，不能静默截断。
@@ -49,3 +49,17 @@
 `npm test` 覆盖原课件库测试、真实子进程的模拟 app-server 协议、事件先于应答、超时结束，以及本机 HTTP → SQLite/文件存储 → agent 替身的上传、问答去重、会话隔离和重启恢复。不调用真实模型，不改动正式课件。
 
 官方接口说明：https://learn.chatgpt.com/docs/app-server
+
+## 2026-09-07 实际 VPS 部署
+
+- 前端：`https://study.r-vera.com`；API：`https://study-api.r-vera.com`。
+- 服务：`studyroom-api.service`，独立用户 `studyroom`，监听 `127.0.0.1:8788`。
+- 程序：`/opt/studyroom/current`；专用 Node：`/opt/studyroom/node/bin/node`（24.20.0）。系统 Node 22 和原有 Codex 0.149.0 安装不变。
+- 私有配置：`/etc/studyroom/service.env`（0600）；数据：`/var/lib/studyroom/data`；独立登录 profile：`/var/lib/studyroom/codex`。口令不在仓库。
+- `deploy/setup-service.sh` 和 `deploy/isolate-service.sh` 记录 systemd 配置；先准备已验证的源码与 Node 路径，再执行。隔离必需，不能只运行前一个脚本就公开服务。
+- 复用 `cloudflared-r-vera.service` 的现有隧道，只增加 `study-api.r-vera.com → http://127.0.0.1:8788` 路由。修改前的配置保存在原目录 `.bak-studyroom-*`；其他路由保留。
+- 安装版本的 `readOnly` 不支持 `access.readableRoots`，本部署采用禁用工具与 systemd 文件系统隔离。主机禁用了非特权 user namespace，因此没有降低该主机限制。
+- 真实测试已通过文字课件上传、分类修改、引用检查、8 个词汇生成、问答、服务重启后同课件续答，以及两份课件会话隔离。验收资料以“部署验收”分类保留，内容不涉及私人资料。
+- 备份 `data` 与 `codex` 两个目录并保留权限；更新时先备份数据，再切换 release 并重启 Studyroom 服务。
+
+- 浏览器验收使用同一前端源码与正式 VPS API：PDF 读取与上传、3 段梳理、5 个词汇生成、原文展开、翻词卡和拼写判定均通过。桌面浏览器验证不代表实机手机 PWA 验证。

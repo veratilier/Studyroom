@@ -1,7 +1,7 @@
 import {spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
 
-export function codexTurn({binary='codex',args=['-c','web_search="disabled"','app-server'],cwd,home,threadId,model,messages,timeout=80000,onThread=()=>{},spawnProcess=spawn}) {
+export function codexTurn({binary='codex',args=['-c','web_search="disabled"',...['shell_tool','unified_exec','code_mode_host','apps','plugins','browser_use','computer_use','image_generation','view_image','multi_agent','goals','skill_search'].flatMap(name=>['--disable',name]),'app-server'],cwd,home,threadId,model,messages,timeout=80000,onThread=()=>{},spawnProcess=spawn}) {
   return new Promise((resolve,reject)=>{
     const child=spawnProcess(binary,args,{cwd,env:{...Object.fromEntries(['PATH','HOME','USER','LOGNAME','LANG','LC_ALL','TMPDIR','SSL_CERT_FILE','SSL_CERT_DIR','HTTP_PROXY','HTTPS_PROXY','NO_PROXY'].filter(k=>process.env[k]).map(k=>[k,process.env[k]])),...(home?{CODEX_HOME:home}:{})},stdio:['pipe','pipe','pipe']});
     let next=0,finished=false,thread=threadId,turn=null,final='',fallback='';
@@ -54,7 +54,7 @@ export function codexTurn({binary='codex',args=['-c','web_search="disabled"','ap
       const settings={cwd,approvalPolicy:'never',sandbox:'read-only',...(model?{model}:{})};
       const result=threadId?await rpc('thread/resume',{...settings,threadId}):await rpc('thread/start',settings);
       thread=result.thread.id;await onThread(thread);
-      const started=await rpc('turn/start',{threadId:thread,cwd,approvalPolicy:'never',sandboxPolicy:{type:'readOnly',access:{type:'restricted',includePlatformDefaults:false,readableRoots:[cwd]}},input:[{type:'text',text:JSON.stringify(messages)}]});
+      const started=await rpc('turn/start',{threadId:thread,cwd,approvalPolicy:'never',sandboxPolicy:{type:'readOnly',networkAccess:false},input:[{type:'text',text:JSON.stringify(messages)}]});
       turn=started.turn.id;for(const e of events.splice(0))event(e);
     })().catch(e=>finish(e));
   });
