@@ -109,7 +109,8 @@
     try{const data=await api('/account/'+find('#accountMode').value,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:find('#accountName').value,password:find('#libraryPassword').value,inviteCode:find('#inviteCode').value,legacyPassword:find('#legacyPassword').value})});remember(data.token);find('#libraryPassword').value='';find('#legacyPassword').value='';find('#inviteCode').value='';await refresh();}catch(err){status(err.message)}finally{button.disabled=false;}
   };
   find('#lockLibrary').onclick=async()=>{try{await api('/account/logout',{method:'POST'});}catch(err){status(err.message);return;}remember('');setLocked();cards();status('已退出登录。');};
-  find('#accountMode').onchange=()=>{find('#registrationFields').hidden=find('#accountMode').value!=='register';find('#libraryPassword').autocomplete=find('#accountMode').value==='register'?'new-password':'current-password';};
+  function syncAccountMode(){find('#registrationFields').hidden=find('#accountMode').value!=='register';find('#libraryPassword').autocomplete=find('#accountMode').value==='register'?'new-password':'current-password';}
+  find('#accountMode').onchange=syncAccountMode;window.addEventListener('pageshow',syncAccountMode);syncAccountMode();
   find('#changePassword').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{const data=await api('/account/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});remember(data.token);e.target.reset();status('密码已修改，其他登录已失效。');}catch(err){status(err.message)}finally{button.disabled=false}};
   find('#aiForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{await api('/account/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(new FormData(e.target)))});e.target.elements.apiKey.value='';find('#aiStatus').textContent='已保存；实际整理时会调用所选服务。';}catch(err){find('#aiStatus').textContent=err.message}finally{button.disabled=false}};
   find('#clearAI').onclick=async()=>{try{await api('/account/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clear:true})});find('#aiForm').reset();find('#aiStatus').textContent='连接已移除。';}catch(err){find('#aiStatus').textContent=err.message}};
@@ -123,7 +124,7 @@
     try {
       const file=find('#courseFile').files[0];if(!file)throw Error('请先选择课件。');
       if(!staged){
-        const {extract}=await import('./extract.mjs');
+        const {extract}=await import('./extract.mjs?v=7');
         const data=await extract(file,status);if(!unlocked||find('#courseFile').files[0]!==file)throw Error('文件或登录状态已变化，请重新读取。');staged={file,...data};
         const preview=find('#extractionPreview');preview.hidden=false;
         preview.innerHTML=`<p>读到了 ${data.pages.length} 页 / 段。确认后将原文件和文字保存到私人课件库，并交给已连接的学习助手整理。</p>${data.warnings.map(w=>`<p class="correction">${safe(w)}</p>`).join('')}<details><summary>查看提取文字</summary><pre>${safe(data.pages.filter(p=>p.text.trim()).slice(0,2).map(p=>`第 ${p.page} 页 / 段\n${p.text.slice(0,1500)}`).join('\n\n'))}</pre></details>`;

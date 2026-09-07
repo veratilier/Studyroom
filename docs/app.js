@@ -23,7 +23,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>tab(b.dataset.t
 start();list();notes();
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'}).catch(() => {}); });
 }
 
 window.studyroomSelectCourse=(id,data=null)=>{activeCourse=data;lecture=id;start();list();notes()};
