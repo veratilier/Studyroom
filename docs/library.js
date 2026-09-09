@@ -72,14 +72,14 @@
       window.studyroomSelectCourse(id,toStudy(course));
     }catch(e){if(version===selectionVersion)window.studyroomSelectCourse(id,{id,title:'课件暂时无法读取',words:[],parts:[],loadError:e.message});}
   }
-  async function runAnalysis(id){
+  async function runAnalysis(id, bilingual=false){
     if(busy)return;
     busy=true;
     try {
       let data=await api(`/courses/${id}`);
-      while(data.completed<data.total && token && selected===id){
-        if(selected===id){window.studyroomSelectCourse(id,toStudy(data));find('#analysisStatus').textContent=`正在整理第 ${data.completed+1} / ${data.total} 部分，请保持页面打开…`;}
-        data=await api(`/courses/${id}/analyze`,{method:'POST'});
+      while((bilingual?(data.bilingual_completed||0):data.completed)<data.total && token && selected===id){
+        if(selected===id){window.studyroomSelectCourse(id,toStudy(data));find('#analysisStatus').textContent=`正在整理第 ${(bilingual?(data.bilingual_completed||0):data.completed)+1} / ${data.total} 部分，请保持页面打开…`;}
+        data=await api(`/courses/${id}/analyze${bilingual?'?bilingual=1':''}`,{method:'POST'});
       }
       if(selected===id)window.studyroomSelectCourse(id,toStudy(data));
       status(data.completed===data.total?'梳理与词汇已保存，可在课堂线索和词汇手册查看。':'整理已暂停，已完成部分会保留。');
@@ -87,18 +87,19 @@
     }catch(e){
       status(e.message);
       if(selected===id&&find('#analysisStatus'))find('#analysisStatus').textContent=e.message+' 已完成部分会保留。';
-    }finally{busy=false;const button=find('#continueAnalysis');if(button)button.disabled=false;}
+    }finally{busy=false;for(const button of document.querySelectorAll('#continueAnalysis,#makeBilingual'))button.disabled=false;}
   }
   window.renderCourseNotes=course=>{
     const target=find('#noteContent');
     if(course.loading||course.loadError){target.innerHTML=`<div class="note"><p>${safe(course.loadError||'正在读取课件…')}</p>${course.loadError?'<button class="button secondary" id="retryCourse">重新读取</button>':''}</div>`;if(find('#retryCourse'))find('#retryCourse').onclick=()=>select(course.id);return;}
     const total=course.total||0,completed=course.completed||0;
-    target.innerHTML=`<div class="note"><p class="eyebrow">${safe(course.subject)}</p><h3>${safe(course.title)}</h3><p class="quiet">已整理 ${completed} / ${total} 部分 · ${course.words.length} 个词汇</p><p id="analysisStatus" role="status" aria-live="polite">${safe(course.error||'AI 辅助整理，仅覆盖已提取的文字；请对照原文核实。')}</p><div class="actions"><button class="button secondary" id="downloadCourse">下载原课件</button>${completed<total?`<button class="button" id="continueAnalysis" ${busy?'disabled':''}>${busy?'整理中…':'继续整理'}</button>`:''}<button class="button secondary" id="courseWords">练习词汇</button></div><details class="course-edit"><summary>修改分类与名称</summary><form id="renameCourse"><label>学科<input name="subject" value="${safe(course.subject)}" maxlength="80" required list="subjectNames"></label><label>课件名称<input name="title" value="${safe(course.title)}" maxlength="160" required></label><button class="button secondary">保存分类</button></form></details></div>`+
-      (course.parts||[]).map(part=>`<div class="part-label">第 ${part.part+1} 部分</div>`+part.sections.map(s=>`<article class="note"><h3>${safe(s.heading)}</h3><ul>${s.points.map(p=>`<li>${safe(p)}</li>`).join('')}</ul><details><summary>对照原文 · 第 ${s.page} 页 / 段</summary><blockquote>${safe(s.quote)}</blockquote><p class="source-text">${safe((course.pages||[]).find(p=>p.page===s.page)?.text||'')}</p></details></article>`).join('')).join('');
+    target.innerHTML=`<div class="note"><p class="eyebrow">${safe(course.subject)}</p><h3>${safe(course.title)}</h3><p class="quiet">已整理 ${completed} / ${total} 部分 · ${course.words.length} 个词汇</p><p id="analysisStatus" role="status" aria-live="polite">${safe(course.error||'AI 辅助整理，仅覆盖已提取的文字；请对照原文核实。')}</p><div class="actions"><button class="button secondary" id="downloadCourse">下载原课件</button>${completed<total?`<button class="button" id="continueAnalysis" ${busy?'disabled':''}>${busy?'整理中…':'继续整理'}</button>`:''}${completed>(course.bilingual_completed||0)?`<button class="button secondary" id="makeBilingual" ${busy?'disabled':''}>补齐中英文对照</button>`:''}<button class="button secondary" id="courseWords">练习词汇</button></div><details class="course-edit"><summary>修改分类与名称</summary><form id="renameCourse"><label>学科<input name="subject" value="${safe(course.subject)}" maxlength="80" required list="subjectNames"></label><label>课件名称<input name="title" value="${safe(course.title)}" maxlength="160" required></label><button class="button secondary">保存分类</button></form></details></div>`+
+      (course.parts||[]).map(part=>`<div class="part-label">第 ${part.part+1} 部分</div>`+part.sections.map(s=>window.studyroomNote(s,(course.pages||[]).find(p=>p.page===s.page)?.text||'' )).join('')).join('');
     if(assistantKind==='codex')window.studyroomMountChat?.({courseId:course.id,target,api,isCurrent:()=>selected===course.id&&unlocked});
     find('#downloadCourse').onclick=async e=>{e.target.disabled=true;try{const blob=await api(`/courses/${course.id}/file`,{blob:true});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=course.filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch(err){find('#analysisStatus').textContent=err.message}finally{e.target.disabled=false}};
     find('#courseWords').onclick=()=>window.studyroomTab('study');
     if(find('#continueAnalysis'))find('#continueAnalysis').onclick=()=>runAnalysis(course.id);
+    if(find('#makeBilingual'))find('#makeBilingual').onclick=()=>runAnalysis(course.id,true);
     find('#renameCourse').onsubmit=async e=>{
       e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;
       try{const values=Object.fromEntries(new FormData(e.target));const data=await api(`/courses/${course.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(values)});await refresh();find('#subject').value=data.subject;courseOptions();find('#lecture').value=data.id;cards();select(data.id);}catch(err){find('#analysisStatus').textContent=err.message;button.disabled=false;}
@@ -120,7 +121,7 @@
     try {
       const file=find('#courseFile').files[0];if(!file)throw Error('请先选择课件。');
       if(!staged){
-        const {extract}=await import('./extract.mjs?v=8');
+        const {extract}=await import('./extract.mjs?v=9');
         const data=await extract(file,status);if(!unlocked||find('#courseFile').files[0]!==file)throw Error('文件或登录状态已变化，请重新读取。');staged={file,...data};
         const preview=find('#extractionPreview');preview.hidden=false;
         preview.innerHTML=`<p>读到了 ${data.pages.length} 页 / 段。确认后将原文件和文字保存到私人课件库，并交给已连接的学习助手整理。</p>${data.warnings.map(w=>`<p class="correction">${safe(w)}</p>`).join('')}<details><summary>查看提取文字</summary><pre>${safe(data.pages.filter(p=>p.text.trim()).slice(0,2).map(p=>`第 ${p.page} 页 / 段\n${p.text.slice(0,1500)}`).join('\n\n'))}</pre></details>`;
