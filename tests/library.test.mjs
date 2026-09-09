@@ -19,7 +19,7 @@ function setup() {
   const env={ALLOWED_ORIGIN:'https://study.r-vera.com',LOGIN_PASSWORD:crypto.randomUUID(),SESSION_SECRET:crypto.randomUUID(),DAILY_AI_CALL_LIMIT:'30',
     DB:{prepare:wrap,async batch(statements){sql.exec('BEGIN');try{const results=[];for(const s of statements)results.push(await s.run());sql.exec('COMMIT');return results}catch(e){sql.exec('ROLLBACK');throw e}}},
     FILES:{async put(key,body){objects.set(key,body)},async get(key){return objects.has(key)?{body:objects.get(key)}:null},async delete(key){objects.delete(key)}},
-    AI:{async run(model,args){calls++;const input=JSON.parse(args.messages[1].content),p=input[0];return {response:JSON.stringify({sections:[{heading:'细胞与能量',points:['课件讨论光合作用。'],page:p.page,quote:p.text.slice(0,50)}],vocabulary:[{term:'photosynthesis',chinese:'光合作用',definition:'Conversion of light energy.',page:p.page}]})}}}
+    AI:{async run(model,args){calls++;const input=JSON.parse(args.messages[1].content),p=input[0];return {response:JSON.stringify({sections:[{heading:'Cells and energy',points:['The lecture explains photosynthesis.'],heading_zh:'细胞与能量',points_zh:['课件讨论光合作用。'],page:p.page,quote:p.text.slice(0,50)}],vocabulary:[{term:'photosynthesis',chinese:'光合作用',definition:'Conversion of light energy.',page:p.page}]})}}}
   };
   let token='';
   async function request(path,method='GET',body,headers={}){
@@ -86,4 +86,16 @@ test('grounding filters invented page citations and absent vocabulary',()=>{
 test('chunking does not lose long-page text or source page numbers',()=>{
   const original='甲'.repeat(12500),chunks=chunkPages([{page:17,text:original}]);
   assert.equal(chunks.flat().map(x=>x.text).join(''),original);assert.ok(chunks.flat().every(x=>x.page===17));
+});
+test('bilingual upgrade preserves vocabulary and old notes; failure never erases completed content',async()=>{
+ const s=setup();await s.login();const c=await(await s.upload()).json();
+ await s.request(`/courses/${c.id}/analyze`,'POST');let d=await(await s.request(`/courses/${c.id}`)).json();assert.equal(d.bilingual_completed,1);assert.equal(d.parts[0].sections[0].heading_zh,'细胞与能量');
+ const original={sections:[{heading:'旧标题',points:['旧知识点'],page:1,quote:'photosynthesis'}],vocabulary:d.parts[0].vocabulary};
+ s.sql.prepare('UPDATE sections SET result=? WHERE course_id=?').run(JSON.stringify(original),c.id);
+ s.env.AI.run=async()=>({response:JSON.stringify({sections:[{heading:'Translation',points:['Translated'],page:1,quote:'photosynthesis'}],vocabulary:[]})});
+ assert.equal((await s.request(`/courses/${c.id}/analyze?bilingual=1`,'POST')).status,502);
+ d=await(await s.request(`/courses/${c.id}`)).json();assert.equal(d.status,'ready');assert.equal(d.parts[0].sections[0].heading,'旧标题');
+ s.env.AI.run=async()=>({response:JSON.stringify({sections:[{heading:'Original heading',points:['Original point'],heading_zh:'旧标题',points_zh:['旧知识点'],page:1,quote:'photosynthesis'}],vocabulary:[]})});
+ d=await(await s.request(`/courses/${c.id}/analyze?bilingual=1`,'POST')).json();assert.equal(d.bilingual_completed,1);assert.deepEqual(d.parts[0].vocabulary,original.vocabulary);assert.deepEqual(d.parts[0].previous_sections,original.sections);
+ s.env.AI.run=async()=>{throw Error('must not repeat')};assert.equal((await s.request(`/courses/${c.id}/analyze?bilingual=1`,'POST')).status,200);
 });

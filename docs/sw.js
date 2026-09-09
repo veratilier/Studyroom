@@ -1,6 +1,6 @@
 'use strict';
-const CACHE = 'studyroom-shell-v8';
-const SHELL = ['./', 'index.html', 'style.css?v=8', 'app.js?v=8', 'library.js?v=8', 'chat.js?v=8', 'library-config.js?v=8', 'extract.mjs?v=8', 'words.json?v=8',  'manifest.webmanifest?v=8', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
+const CACHE = 'studyroom-shell-v9';
+const SHELL = ['./', 'index.html', 'style.css?v=9', 'app.js?v=9', 'notes-language.js?v=9', 'builtin-notes.js?v=9', 'library.js?v=9', 'chat.js?v=9', 'library-config.js?v=9', 'extract.mjs?v=9', 'words.json?v=9',  'manifest.webmanifest?v=9', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL.map(url=>new Request(url,{cache:'reload'})))).then(()=>self.skipWaiting()));
 });
